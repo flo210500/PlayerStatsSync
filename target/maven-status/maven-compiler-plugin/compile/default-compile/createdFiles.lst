@@ -1,0 +1,11 @@
+de\plugin\playerstatssync\manager\SyncManager.class
+de\plugin\playerstatssync\PlayerStatsSync.class
+de\plugin\playerstatssync\commands\VerifyCommand.class
+de\plugin\playerstatssync\listener\PlayerListener.class
+de\plugin\playerstatssync\manager\StatConfig.class
+de\plugin\playerstatssync\manager\ObjectiveConfig$ObjectiveSettings.class
+de\plugin\playerstatssync\database\DatabaseManager.class
+de\plugin\playerstatssync\manager\ObjectiveConfig.class
+de\plugin\playerstatssync\commands\StatsCommand.class
+de\plugin\playerstatssync\manager\StatConfig$1.class
+de\plugin\playerstatssync\manager\StatConfig$StatEntry.class
