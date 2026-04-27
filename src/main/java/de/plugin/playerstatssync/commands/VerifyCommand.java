@@ -70,7 +70,6 @@ public class VerifyCommand implements CommandExecutor {
             return true;
         }
 
-        // Sign payload: uuid:code:timestamp
         final String signature;
         try {
             signature = hmacSha256(uuid + ":" + code + ":" + timestamp, secret);
@@ -82,7 +81,6 @@ public class VerifyCommand implements CommandExecutor {
 
         player.sendMessage(Component.text("⏳ Verifying...", NamedTextColor.YELLOW));
 
-        // Fire HTTP request async — never block the main thread
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             int status;
             try {

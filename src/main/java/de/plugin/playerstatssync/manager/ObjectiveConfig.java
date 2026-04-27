@@ -29,7 +29,8 @@ public class ObjectiveConfig {
                     obj.getString("display-name", key),
                     obj.getBoolean("sync-on-join", true),
                     obj.getBoolean("sync-on-quit", true),
-                    obj.getBoolean("sync-periodically", true)
+                    obj.getBoolean("sync-periodically", true),
+                    obj.getString("conflict-resolution", "last-write-wins")
             ));
         }
 
@@ -44,20 +45,23 @@ public class ObjectiveConfig {
     // -------------------------------------------------------
 
     public static class ObjectiveSettings {
-        private final String name, displayName;
+        private final String name, displayName, conflictResolution;
         private final boolean syncOnJoin, syncOnQuit, syncPeriodically;
 
         public ObjectiveSettings(String name, String displayName,
-                                 boolean syncOnJoin, boolean syncOnQuit, boolean syncPeriodically) {
-            this.name = name;
-            this.displayName = displayName;
-            this.syncOnJoin = syncOnJoin;
-            this.syncOnQuit = syncOnQuit;
-            this.syncPeriodically = syncPeriodically;
+                                 boolean syncOnJoin, boolean syncOnQuit, boolean syncPeriodically,
+                                 String conflictResolution) {
+            this.name               = name;
+            this.displayName        = displayName;
+            this.syncOnJoin         = syncOnJoin;
+            this.syncOnQuit         = syncOnQuit;
+            this.syncPeriodically   = syncPeriodically;
+            this.conflictResolution = conflictResolution;
         }
 
         public String getName()                { return name; }
         public String getDisplayName()         { return displayName; }
+        public String getConflictResolution()  { return conflictResolution; }
         public boolean isSyncOnJoin()          { return syncOnJoin; }
         public boolean isSyncOnQuit()          { return syncOnQuit; }
         public boolean isSyncPeriodically()    { return syncPeriodically; }

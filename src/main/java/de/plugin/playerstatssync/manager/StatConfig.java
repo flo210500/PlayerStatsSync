@@ -34,6 +34,7 @@ public class StatConfig {
             boolean syncOnQuit       = statSec.getBoolean("sync-on-quit", true);
             boolean syncPeriodically = statSec.getBoolean("sync-periodically", true);
             String  displayName      = statSec.getString("display-name", key);
+            String  conflictRes      = statSec.getString("conflict-resolution", "last-write-wins");
 
             // ── CUSTOM stats (minecraft:custom namespace) ──────────────
             if (statName.equals("CUSTOM")) {
@@ -43,7 +44,7 @@ public class StatConfig {
                     continue;
                 }
                 entries.add(new StatEntry(key, displayName, null, null, null, customKey,
-                        syncOnJoin, syncOnQuit, syncPeriodically));
+                        syncOnJoin, syncOnQuit, syncPeriodically, conflictRes));
                 plugin.getLogger().info("Loaded CUSTOM stat '" + key + "' -> minecraft:custom:" + customKey);
                 continue;
             }
@@ -61,7 +62,7 @@ public class StatConfig {
 
                 case UNTYPED -> entries.add(new StatEntry(
                         key, displayName, statistic, null, null, null,
-                        syncOnJoin, syncOnQuit, syncPeriodically));
+                        syncOnJoin, syncOnQuit, syncPeriodically, conflictRes));
 
                 case BLOCK, ITEM -> {
                     List<String> materials = statSec.getStringList("materials");
@@ -81,7 +82,7 @@ public class StatConfig {
                         entries.add(new StatEntry(
                                 entryKey, displayName + " (" + mat.name() + ")",
                                 statistic, mat, null, null,
-                                syncOnJoin, syncOnQuit, syncPeriodically));
+                                syncOnJoin, syncOnQuit, syncPeriodically, conflictRes));
                     }
                 }
 
@@ -103,7 +104,7 @@ public class StatConfig {
                         entries.add(new StatEntry(
                                 entryKey, displayName + " (" + entityType.name() + ")",
                                 statistic, null, entityType, null,
-                                syncOnJoin, syncOnQuit, syncPeriodically));
+                                syncOnJoin, syncOnQuit, syncPeriodically, conflictRes));
                     }
                 }
             }
@@ -129,19 +130,22 @@ public class StatConfig {
         private final boolean    syncOnJoin;
         private final boolean    syncOnQuit;
         private final boolean    syncPeriodically;
+        private final String     conflictResolution;
 
         public StatEntry(String key, String displayName, Statistic statistic,
                          Material material, EntityType entityType, String customKey,
-                         boolean syncOnJoin, boolean syncOnQuit, boolean syncPeriodically) {
-            this.key              = key;
-            this.displayName      = displayName;
-            this.statistic        = statistic;
-            this.material         = material;
-            this.entityType       = entityType;
-            this.customKey        = customKey;
-            this.syncOnJoin       = syncOnJoin;
-            this.syncOnQuit       = syncOnQuit;
-            this.syncPeriodically = syncPeriodically;
+                         boolean syncOnJoin, boolean syncOnQuit, boolean syncPeriodically,
+                         String conflictResolution) {
+            this.key               = key;
+            this.displayName       = displayName;
+            this.statistic         = statistic;
+            this.material          = material;
+            this.entityType        = entityType;
+            this.customKey         = customKey;
+            this.syncOnJoin        = syncOnJoin;
+            this.syncOnQuit        = syncOnQuit;
+            this.syncPeriodically  = syncPeriodically;
+            this.conflictResolution = conflictResolution;
         }
 
         public int readValue(org.bukkit.entity.Player player) {
@@ -185,6 +189,7 @@ public class StatConfig {
         public Material   getMaterial()        { return material; }
         public EntityType getEntityType()      { return entityType; }
         public String     getCustomKey()       { return customKey; }
+        public String     getConflictResolution() { return conflictResolution; }
         public boolean    isSyncOnJoin()       { return syncOnJoin; }
         public boolean    isSyncOnQuit()       { return syncOnQuit; }
         public boolean    isSyncPeriodically() { return syncPeriodically; }

@@ -7,6 +7,7 @@ import de.plugin.playerstatssync.listener.PlayerListener;
 import de.plugin.playerstatssync.manager.ObjectiveConfig;
 import de.plugin.playerstatssync.manager.StatConfig;
 import de.plugin.playerstatssync.manager.SyncManager;
+import de.plugin.playerstatssync.placeholder.StatsSyncPlaceholder;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import org.bukkit.configuration.file.FileConfiguration;
@@ -57,6 +58,14 @@ public final class PlayerStatsSync extends JavaPlugin {
         getCommand("playerstatssync").setTabCompleter(cmd);
 
         getCommand("verify").setExecutor(new VerifyCommand(this));
+
+        // PlaceholderAPI — optional
+        if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
+            new StatsSyncPlaceholder(this).register();
+            getLogger().info("PlaceholderAPI found — placeholders registered.");
+        } else {
+            getLogger().info("PlaceholderAPI not found — placeholders disabled.");
+        }
 
         getLogger().info("PlayerStatsSync enabled! Syncing "
                 + ObjectiveConfig.getEnabledObjectives().size() + " objective(s) + "

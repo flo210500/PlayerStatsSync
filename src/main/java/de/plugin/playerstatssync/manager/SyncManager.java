@@ -81,8 +81,8 @@ public class SyncManager {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
                 long playerId = plugin.getDatabaseManager().upsertPlayer(uuid, name);
-                plugin.getDatabaseManager().saveScoresBatch(playerId, scores);
-                plugin.getDatabaseManager().saveStatsBatch(playerId, statValues);
+                plugin.getDatabaseManager().saveScoresBatch(playerId, scores, objectives);
+                plugin.getDatabaseManager().saveStatsBatch(playerId, statValues, stats);
                 plugin.log("[Quit] Synced " + scores.size() + " objective(s) + "
                         + statValues.size() + " stat(s) for " + name
                         + " (db_id=" + playerId + ")");
@@ -116,8 +116,8 @@ public class SyncManager {
             long playerId = plugin.getDatabaseManager()
                     .upsertPlayer(player.getUniqueId(), player.getName());
 
-            plugin.getDatabaseManager().saveScoresBatch(playerId, scores);
-            plugin.getDatabaseManager().saveStatsBatch(playerId, statValues);
+            plugin.getDatabaseManager().saveScoresBatch(playerId, scores, objectives);
+            plugin.getDatabaseManager().saveStatsBatch(playerId, statValues, stats);
 
             plugin.log("[" + trigger + "] Synced " + scores.size() + " objective(s) + "
                     + statValues.size() + " stat(s) for " + player.getName()

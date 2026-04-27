@@ -50,6 +50,11 @@ database:
 #       sync-on-join: true/false      # Save to DB when player joins
 #       sync-on-quit: true/false      # Save to DB when player quits
 #       sync-periodically: true/false # Include in periodic sync task
+#       conflict-resolution:          # What to do when a value already exists in DB:
+#         last-write-wins             #   Always overwrite (default)
+#         additive                    #   Keep the higher value (safe for monotonic counters like kills/deaths)
+#         max                         #   Keep the higher value (same as additive)
+#         min                         #   Keep the lower value
 #
 # ============================================================
 objectives:
@@ -59,6 +64,7 @@ objectives:
     sync-on-join: true
     sync-on-quit: true
     sync-periodically: true
+    conflict-resolution: additive
 
   deaths:
     enabled: true
@@ -66,6 +72,7 @@ objectives:
     sync-on-join: true
     sync-on-quit: true
     sync-periodically: true
+    conflict-resolution: additive
 
   money:
     enabled: true
@@ -73,6 +80,7 @@ objectives:
     sync-on-join: true
     sync-on-quit: true
     sync-periodically: true
+    conflict-resolution: last-write-wins
 
   playtime:
     enabled: true
@@ -80,6 +88,7 @@ objectives:
     sync-on-join: false
     sync-on-quit: true
     sync-periodically: true
+    conflict-resolution: additive
 
 # ============================================================
 #   Sync interval in minutes (default: 20)
@@ -218,11 +227,47 @@ statistics:
     sync-on-quit: true
     sync-periodically: false
     entities:
-      - CREEPER
+      # Overworld - haeufig
       - ZOMBIE
+      - ZOMBIE_VILLAGER
+      - DROWNED
+      - HUSK
       - SKELETON
+      - STRAY
+      - BOGGED
+      - CREEPER
       - SPIDER
-      - ENDERMAN
+      - CAVE_SPIDER
+      - SLIME
+      - SILVERFISH
+      - ENDERMITE
+      - PHANTOM
       - WITCH
+      # Overworld - Illager
+      - PILLAGER
+      - VINDICATOR
+      - EVOKER
+      - RAVAGER
+      - VEX
+      # Overworld - Wasser
+      - ELDER_GUARDIAN
+      - GUARDIAN
+      # Overworld - sonstige
+      - SHULKER
+      # End
+      - ENDERMAN
+      # Nether
       - BLAZE
       - WITHER_SKELETON
+      - ZOMBIFIED_PIGLIN
+      - PIGLIN
+      - PIGLIN_BRUTE
+      - HOGLIN
+      - ZOGLIN
+      - GHAST
+      - MAGMA_CUBE
+      # Bosse
+      - WITHER
+      - ENDER_DRAGON
+      # 1.21+
+      - BREEZE
