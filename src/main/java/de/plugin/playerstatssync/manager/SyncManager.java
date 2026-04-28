@@ -81,8 +81,8 @@ public class SyncManager {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
                 long playerId = plugin.getDatabaseManager().upsertPlayer(uuid, name);
-                plugin.getDatabaseManager().saveScoresBatch(playerId, scores);
-                plugin.getDatabaseManager().saveStatsBatch(playerId, statValues);
+                plugin.getDatabaseManager().saveScoresBatch(playerId, scores, objectives);
+                plugin.getDatabaseManager().saveStatsBatch(playerId, statValues, stats);
                 plugin.log("[Quit] Synced " + scores.size() + " objective(s) + "
                         + statValues.size() + " stat(s) for " + name
                         + " (db_id=" + playerId + ")");
@@ -98,6 +98,18 @@ public class SyncManager {
         for (Player player : Bukkit.getOnlinePlayers()) {
             syncPlayer(player, all, allStats, "manual");
         }
+    }
+
+    /**
+     * Syncs a single online player — all enabled objectives and stats.
+     * Returns false if the player is not online.
+     */
+    public boolean syncSinglePlayer(org.bukkit.entity.Player player) {
+        if (!player.isOnline()) return false;
+        List<ObjectiveConfig.ObjectiveSettings> all      = List.copyOf(ObjectiveConfig.getEnabledObjectives());
+        List<StatConfig.StatEntry>              allStats = List.copyOf(StatConfig.getEnabledEntries());
+        syncPlayer(player, all, allStats, "manual-single");
+        return true;
     }
 
     // -------------------------------------------------------
@@ -116,8 +128,8 @@ public class SyncManager {
             long playerId = plugin.getDatabaseManager()
                     .upsertPlayer(player.getUniqueId(), player.getName());
 
-            plugin.getDatabaseManager().saveScoresBatch(playerId, scores);
-            plugin.getDatabaseManager().saveStatsBatch(playerId, statValues);
+            plugin.getDatabaseManager().saveScoresBatch(playerId, scores, objectives);
+            plugin.getDatabaseManager().saveStatsBatch(playerId, statValues, stats);
 
             plugin.log("[" + trigger + "] Synced " + scores.size() + " objective(s) + "
                     + statValues.size() + " stat(s) for " + player.getName()
