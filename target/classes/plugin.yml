@@ -1,9 +1,11 @@
 name: PlayerStatsSync
-version: '1.0.0'
+version: '1.1.0'
 main: de.plugin.playerstatssync.PlayerStatsSync
 api-version: '1.21'
 description: Syncs scoreboard objectives per player with a MySQL database
 author: Shin_Jin_Jin
+softdepend:
+  - PlaceholderAPI
 
 commands:
   playerstatssync:

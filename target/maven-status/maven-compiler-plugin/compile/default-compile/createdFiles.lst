@@ -1,7 +1,9 @@
+de\plugin\playerstatssync\api\PlayerStatsSyncAPI.class
 de\plugin\playerstatssync\manager\SyncManager.class
 de\plugin\playerstatssync\PlayerStatsSync.class
 de\plugin\playerstatssync\commands\VerifyCommand.class
 de\plugin\playerstatssync\listener\PlayerListener.class
+de\plugin\playerstatssync\placeholder\StatsSyncPlaceholder.class
 de\plugin\playerstatssync\manager\StatConfig.class
 de\plugin\playerstatssync\manager\ObjectiveConfig$ObjectiveSettings.class
 de\plugin\playerstatssync\database\DatabaseManager.class

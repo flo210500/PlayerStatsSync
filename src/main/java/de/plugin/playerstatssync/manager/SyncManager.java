@@ -100,6 +100,18 @@ public class SyncManager {
         }
     }
 
+    /**
+     * Syncs a single online player — all enabled objectives and stats.
+     * Returns false if the player is not online.
+     */
+    public boolean syncSinglePlayer(org.bukkit.entity.Player player) {
+        if (!player.isOnline()) return false;
+        List<ObjectiveConfig.ObjectiveSettings> all      = List.copyOf(ObjectiveConfig.getEnabledObjectives());
+        List<StatConfig.StatEntry>              allStats = List.copyOf(StatConfig.getEnabledEntries());
+        syncPlayer(player, all, allStats, "manual-single");
+        return true;
+    }
+
     // -------------------------------------------------------
     //   Core sync logic
     // -------------------------------------------------------
