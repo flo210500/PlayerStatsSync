@@ -8,6 +8,7 @@ import de.plugin.playerstatssync.manager.ObjectiveConfig;
 import de.plugin.playerstatssync.manager.StatConfig;
 import de.plugin.playerstatssync.manager.SyncManager;
 import de.plugin.playerstatssync.placeholder.StatsSyncPlaceholder;
+import de.plugin.playerstatssync.updater.UpdateChecker;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import org.bukkit.configuration.file.FileConfiguration;
@@ -22,7 +23,8 @@ public final class PlayerStatsSync extends JavaPlugin {
 
     private static PlayerStatsSync instance;
     private DatabaseManager databaseManager;
-    private SyncManager syncManager;
+    private SyncManager     syncManager;
+    private UpdateChecker   updateChecker;
 
     @Override
     public void onEnable() {
@@ -66,6 +68,11 @@ public final class PlayerStatsSync extends JavaPlugin {
         } else {
             getLogger().info("PlaceholderAPI not found — placeholders disabled.");
         }
+
+        // Update Checker
+        updateChecker = new UpdateChecker(this);
+        updateChecker.checkAsync();
+        getServer().getPluginManager().registerEvents(updateChecker, this);
 
         getLogger().info("PlayerStatsSync enabled! Syncing "
                 + ObjectiveConfig.getEnabledObjectives().size() + " objective(s) + "
@@ -148,7 +155,8 @@ public final class PlayerStatsSync extends JavaPlugin {
 
     public static PlayerStatsSync getInstance()  { return instance; }
     public DatabaseManager getDatabaseManager()  { return databaseManager; }
-    public SyncManager getSyncManager()          { return syncManager; }
+    public SyncManager     getSyncManager()      { return syncManager; }
+    public UpdateChecker   getUpdateChecker()    { return updateChecker; }
 
     public void log(String message) {
         if (getConfig().getBoolean("logging.log-sync-actions", true))

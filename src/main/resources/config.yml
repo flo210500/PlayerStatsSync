@@ -23,7 +23,17 @@ verify:
   # Shown to players in the /verify usage hint
   website-url: "https://DEINE-DOMAIN.de/stats"
 
-# MySQL database connection settings
+# ============================================================
+#   Update Checker
+#   Checks GitHub Releases for newer versions on startup.
+#   Notifies admins (playerstatssync.admin) on join.
+# ============================================================
+updater:
+  enabled: true
+  notify-on-join: true
+
+# ============================================================
+#   MySQL database connection settings
 database:
   host: "localhost"
   port: 3306

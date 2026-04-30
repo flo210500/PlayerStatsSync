@@ -4,12 +4,16 @@ import de.plugin.playerstatssync.PlayerStatsSync;
 import de.plugin.playerstatssync.manager.ObjectiveConfig;
 import de.plugin.playerstatssync.manager.StatConfig;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
+import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Arrays;
@@ -160,6 +164,31 @@ public class StatsCommand implements CommandExecutor, TabCompleter {
                 }
             }
 
+            case "version" -> {
+                var updater = plugin.getUpdateChecker();
+                sender.sendMessage(Component.text("─── PlayerStatsSync Version ───", NamedTextColor.GOLD));
+
+                if (updater == null || !updater.hasChecked()) {
+                    sender.sendMessage(line("Version", plugin.getDescription().getVersion(), NamedTextColor.WHITE));
+                    sender.sendMessage(Component.text("⏳ Checking for updates...", NamedTextColor.GRAY));
+
+                    // Warten bis der Check fertig ist, dann automatisch Ergebnis senden
+                    Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+                        long start = System.currentTimeMillis();
+                        while (!updater.hasChecked() && System.currentTimeMillis() - start < 10_000) {
+                            try { Thread.sleep(200); } catch (InterruptedException ignored) {}
+                        }
+                        Bukkit.getScheduler().runTask(plugin, () -> {
+                            if (sender instanceof Player p && !p.isOnline()) return;
+                            sendVersionResult(sender, updater);
+                        });
+                    });
+                    return true;
+                }
+
+                sendVersionResult(sender, updater);
+            }
+
             default -> sendHelp(sender);
         }
 
@@ -169,6 +198,37 @@ public class StatsCommand implements CommandExecutor, TabCompleter {
     private Component line(String label, String value, NamedTextColor valueColor) {
         return Component.text(label + ": ", NamedTextColor.GRAY)
                 .append(Component.text(value, valueColor));
+    }
+
+    private void sendVersionResult(CommandSender sender, de.plugin.playerstatssync.updater.UpdateChecker updater) {
+        if (updater == null || !updater.hasChecked()) {
+            sender.sendMessage(Component.text("✘ Update check timed out.", NamedTextColor.RED));
+            return;
+        }
+
+        sender.sendMessage(line("Installed", updater.getCurrentVersion(), NamedTextColor.WHITE));
+
+        if (updater.isUpdateAvailable()) {
+            sender.sendMessage(line("Latest   ", updater.getLatestVersion(), NamedTextColor.GREEN));
+            sender.sendMessage(Component.text("⚠ Update available!", NamedTextColor.YELLOW, TextDecoration.BOLD));
+            sender.sendMessage(Component.empty());
+            sender.sendMessage(
+                    Component.text("  ► SpigotMC ", NamedTextColor.GOLD, TextDecoration.UNDERLINED)
+                            .clickEvent(ClickEvent.openUrl("https://www.spigotmc.org/resources/payer-stats-sync.134575/"))
+                            .hoverEvent(HoverEvent.showText(Component.text("Öffne SpigotMC", NamedTextColor.GRAY)))
+                            .append(Component.text("  ", NamedTextColor.DARK_GRAY))
+                            .append(Component.text("► GitHub Release", NamedTextColor.AQUA, TextDecoration.UNDERLINED)
+                                    .clickEvent(ClickEvent.openUrl(updater.getDownloadUrl() != null
+                                            ? updater.getDownloadUrl()
+                                            : "https://github.com/flo210500/PlayerStatsSync/releases/latest"))
+                                    .hoverEvent(HoverEvent.showText(Component.text("Öffne GitHub Release", NamedTextColor.GRAY)))));
+        } else if (updater.isDevVersion()) {
+            sender.sendMessage(line("Latest   ", updater.getLatestVersion(), NamedTextColor.GRAY));
+            sender.sendMessage(Component.text("⚡ Dev build — newer than latest release.", NamedTextColor.LIGHT_PURPLE));
+        } else {
+            sender.sendMessage(line("Latest   ", updater.getLatestVersion(), NamedTextColor.GREEN));
+            sender.sendMessage(Component.text("✔ Up to date!", NamedTextColor.GREEN));
+        }
     }
 
     private void sendHelp(CommandSender sender) {
@@ -181,12 +241,14 @@ public class StatsCommand implements CommandExecutor, TabCompleter {
                 .append(Component.text("– Force-sync specific player(s)", NamedTextColor.GRAY)));
         sender.sendMessage(Component.text("/pss status          ", NamedTextColor.AQUA)
                 .append(Component.text("– Show DB status & table layout", NamedTextColor.GRAY)));
+        sender.sendMessage(Component.text("/pss version         ", NamedTextColor.AQUA)
+                .append(Component.text("– Show version & update info", NamedTextColor.GRAY)));
     }
 
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command,
                                       @NotNull String alias, @NotNull String[] args) {
-        if (args.length == 1) return Arrays.asList("reload", "sync", "status");
+        if (args.length == 1) return Arrays.asList("reload", "sync", "status", "version");
         if (args.length == 2 && args[0].equalsIgnoreCase("sync")) {
             String partial = args[1].toLowerCase();
             List<String> suggestions = new java.util.ArrayList<>();
