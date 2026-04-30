@@ -5,9 +5,6 @@
       <configuration>
         <userChosenTypes>
           <map>
-            <entry key="BUKKIT" value="false" />
-            <entry key="SPIGOT" value="false" />
-            <entry key="PAPER" value="true" />
             <entry key="ARCHITECTURY" value="false" />
             <entry key="FORGE" value="false" />
             <entry key="FABRIC" value="false" />
