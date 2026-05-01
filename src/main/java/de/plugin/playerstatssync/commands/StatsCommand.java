@@ -117,51 +117,149 @@ public class StatsCommand implements CommandExecutor, TabCompleter {
             }
 
             case "status" -> {
+                // /pss status [key] — without key: compact overview, with key: detail view
+                if (args.length >= 2) {
+                    // Detail view: /pss status <key> [page]
+                    String detailKey = args.length >= 3
+                            ? args[1] + " " + args[2]   // key + page number
+                            : args[1];
+                    sendStatusDetail(sender, detailKey);
+                    return true;
+                }
+
                 boolean db       = plugin.getDatabaseManager().isConnected();
                 int     online   = Bukkit.getOnlinePlayers().size();
                 int     interval = plugin.getConfig().getInt("sync-interval-minutes", 20);
                 String  prefix   = plugin.getDatabaseManager().getTablePrefix();
 
                 sender.sendMessage(Component.text("─── PlayerStatsSync Status ───", NamedTextColor.GOLD));
-                sender.sendMessage(line("DB Connected ", db ? "✔ Yes" : "✘ No",
+                sender.sendMessage(line("DB Connected  ", db ? "✔ Yes" : "✘ No",
                         db ? NamedTextColor.GREEN : NamedTextColor.RED));
                 sender.sendMessage(line("Players online", String.valueOf(online), NamedTextColor.WHITE));
                 sender.sendMessage(line("Sync interval ", interval + " min", NamedTextColor.WHITE));
                 sender.sendMessage(line("Table prefix  ", prefix, NamedTextColor.WHITE));
-                sender.sendMessage(Component.text("Objectives & tables:", NamedTextColor.GRAY));
 
-                for (ObjectiveConfig.ObjectiveSettings s : ObjectiveConfig.getEnabledObjectives()) {
-                    String table = plugin.getDatabaseManager().objectiveTableName(s.getName());
+                // ── Objectives ────────────────────────────────
+                var objectives = ObjectiveConfig.getEnabledObjectives();
+                sender.sendMessage(Component.empty());
+                sender.sendMessage(Component.text("Objectives (" + objectives.size() + "):", NamedTextColor.GRAY));
+                for (ObjectiveConfig.ObjectiveSettings s : objectives) {
+                    String triggers = buildTriggers(s.isSyncOnJoin(), s.isSyncOnQuit(), s.isSyncPeriodically());
+                    String table    = plugin.getDatabaseManager().objectiveTableName(s.getName());
                     sender.sendMessage(
                             Component.text("  • ", NamedTextColor.DARK_GRAY)
-                                    .append(Component.text(s.getName(), NamedTextColor.AQUA))
-                                    .append(Component.text(" → ", NamedTextColor.DARK_GRAY))
-                                    .append(Component.text(table, NamedTextColor.WHITE))
-                                    .append(Component.text(
-                                            " [join=" + s.isSyncOnJoin()
-                                                    + " quit=" + s.isSyncOnQuit()
-                                                    + " periodic=" + s.isSyncPeriodically() + "]",
-                                            NamedTextColor.DARK_GRAY)));
+                                    .append(Component.text(s.getName(), NamedTextColor.AQUA)
+                                            .hoverEvent(HoverEvent.showText(
+                                                    Component.text("Table: ", NamedTextColor.GRAY)
+                                                            .append(Component.text(table + "\n", NamedTextColor.WHITE))
+                                                            .append(Component.text("Triggers: ", NamedTextColor.GRAY))
+                                                            .append(Component.text(triggers, NamedTextColor.WHITE))
+                                                            .append(Component.text("\nConflict: ", NamedTextColor.GRAY))
+                                                            .append(Component.text(s.getConflictResolution(), NamedTextColor.YELLOW))
+                                                            .append(Component.text("\n\nClick for details", NamedTextColor.DARK_GRAY))))
+                                            .clickEvent(ClickEvent.runCommand("/pss status " + s.getName())))
+                                    .append(Component.text(" " + triggers, NamedTextColor.DARK_GRAY)));
                 }
 
-                sender.sendMessage(Component.text("Statistics & tables:", NamedTextColor.GRAY));
-                if (StatConfig.getEnabledEntries().isEmpty()) {
-                    sender.sendMessage(Component.text("  (none configured)", NamedTextColor.DARK_GRAY));
-                } else {
-                    for (StatConfig.StatEntry s : StatConfig.getEnabledEntries()) {
-                        String table = plugin.getDatabaseManager().statTableName(s.getKey());
+                // ── Stats grouped by type ─────────────────────
+                var allStats = StatConfig.getEnabledEntries();
+                if (!allStats.isEmpty()) {
+                    // Group: UNTYPED/CUSTOM (simple entries)
+                    var simple = allStats.stream()
+                            .filter(s -> s.getMaterial() == null && s.getEntityType() == null)
+                            .toList();
+                    // Group: ENTITY (kill_entity_*)
+                    var entityGroups = allStats.stream()
+                            .filter(s -> s.getEntityType() != null)
+                            .collect(java.util.stream.Collectors.groupingBy(s -> {
+                                String k = s.getKey();
+                                int last = k.lastIndexOf('_');
+                                return last > 0 ? k.substring(0, last) : k;
+                            }));
+                    // Group: BLOCK/ITEM
+                    var materialGroups = allStats.stream()
+                            .filter(s -> s.getMaterial() != null)
+                            .collect(java.util.stream.Collectors.groupingBy(s -> {
+                                String k = s.getKey();
+                                int last = k.lastIndexOf('_');
+                                return last > 0 ? k.substring(0, last) : k;
+                            }));
+
+                    sender.sendMessage(Component.empty());
+                    sender.sendMessage(Component.text("Statistics (" + allStats.size() + " entries):", NamedTextColor.GRAY));
+
+                    // Simple stats — one line each
+                    for (StatConfig.StatEntry s : simple) {
+                        String triggers = buildTriggers(s.isSyncOnJoin(), s.isSyncOnQuit(), s.isSyncPeriodically());
+                        String table    = plugin.getDatabaseManager().statTableName(s.getKey());
                         sender.sendMessage(
                                 Component.text("  • ", NamedTextColor.DARK_GRAY)
-                                        .append(Component.text(s.getKey(), NamedTextColor.GREEN))
-                                        .append(Component.text(" → ", NamedTextColor.DARK_GRAY))
-                                        .append(Component.text(table, NamedTextColor.WHITE))
-                                        .append(Component.text(
-                                                " [join=" + s.isSyncOnJoin()
-                                                        + " quit=" + s.isSyncOnQuit()
-                                                        + " periodic=" + s.isSyncPeriodically() + "]",
-                                                NamedTextColor.DARK_GRAY)));
+                                        .append(Component.text(s.getKey(), NamedTextColor.GREEN)
+                                                .hoverEvent(HoverEvent.showText(
+                                                        Component.text("Table: ", NamedTextColor.GRAY)
+                                                                .append(Component.text(table + "\n", NamedTextColor.WHITE))
+                                                                .append(Component.text("Triggers: ", NamedTextColor.GRAY))
+                                                                .append(Component.text(triggers, NamedTextColor.WHITE))
+                                                                .append(Component.text("\nConflict: ", NamedTextColor.GRAY))
+                                                                .append(Component.text(s.getConflictResolution(), NamedTextColor.YELLOW))
+                                                                .append(Component.text("\n\nClick for details", NamedTextColor.DARK_GRAY))))
+                                                .clickEvent(ClickEvent.runCommand("/pss status " + s.getKey())))
+                                        .append(Component.text(" " + triggers, NamedTextColor.DARK_GRAY)));
+                    }
+
+                    // Entity groups — one summary line per group
+                    for (var entry : entityGroups.entrySet()) {
+                        String groupKey = entry.getKey();
+                        var members     = entry.getValue();
+                        String triggers = buildTriggers(
+                                members.get(0).isSyncOnJoin(),
+                                members.get(0).isSyncOnQuit(),
+                                members.get(0).isSyncPeriodically());
+                        String entityList = members.stream()
+                                .map(s -> s.getEntityType().name().toLowerCase())
+                                .collect(java.util.stream.Collectors.joining(", "));
+                        sender.sendMessage(
+                                Component.text("  • ", NamedTextColor.DARK_GRAY)
+                                        .append(Component.text(groupKey, NamedTextColor.GREEN))
+                                        .append(Component.text(" ×" + members.size(), NamedTextColor.YELLOW)
+                                                .hoverEvent(HoverEvent.showText(
+                                                        Component.text("Entities:\n", NamedTextColor.GRAY)
+                                                                .append(Component.text(entityList, NamedTextColor.WHITE))
+                                                                .append(Component.text("\nTriggers: ", NamedTextColor.GRAY))
+                                                                .append(Component.text(triggers, NamedTextColor.WHITE))
+                                                                .append(Component.text("\n\nClick to list all", NamedTextColor.DARK_GRAY))))
+                                                .clickEvent(ClickEvent.runCommand("/pss status " + groupKey)))
+                                        .append(Component.text(" " + triggers, NamedTextColor.DARK_GRAY)));
+                    }
+
+                    // Material groups
+                    for (var entry : materialGroups.entrySet()) {
+                        String groupKey = entry.getKey();
+                        var members     = entry.getValue();
+                        String triggers = buildTriggers(
+                                members.get(0).isSyncOnJoin(),
+                                members.get(0).isSyncOnQuit(),
+                                members.get(0).isSyncPeriodically());
+                        String matList = members.stream()
+                                .map(s -> s.getMaterial().name().toLowerCase())
+                                .collect(java.util.stream.Collectors.joining(", "));
+                        sender.sendMessage(
+                                Component.text("  • ", NamedTextColor.DARK_GRAY)
+                                        .append(Component.text(groupKey, NamedTextColor.GREEN))
+                                        .append(Component.text(" ×" + members.size(), NamedTextColor.YELLOW)
+                                                .hoverEvent(HoverEvent.showText(
+                                                        Component.text("Materials:\n", NamedTextColor.GRAY)
+                                                                .append(Component.text(matList, NamedTextColor.WHITE))
+                                                                .append(Component.text("\nTriggers: ", NamedTextColor.GRAY))
+                                                                .append(Component.text(triggers, NamedTextColor.WHITE))
+                                                                .append(Component.text("\n\nClick to list all", NamedTextColor.DARK_GRAY))))
+                                                .clickEvent(ClickEvent.runCommand("/pss status " + groupKey)))
+                                        .append(Component.text(" " + triggers, NamedTextColor.DARK_GRAY)));
                     }
                 }
+
+                sender.sendMessage(Component.empty());
+                sender.sendMessage(Component.text("Hover over entries for details · Click for full info", NamedTextColor.DARK_GRAY));
             }
 
             case "version" -> {
@@ -193,6 +291,125 @@ public class StatsCommand implements CommandExecutor, TabCompleter {
         }
 
         return true;
+    }
+
+    private String buildTriggers(boolean join, boolean quit, boolean periodic) {
+        var parts = new java.util.ArrayList<String>();
+        if (join)     parts.add("join");
+        if (quit)     parts.add("quit");
+        if (periodic) parts.add("periodic");
+        return "[" + String.join("+", parts) + "]";
+    }
+
+    private static final int PAGE_SIZE = 8;
+
+    private void sendStatusDetail(CommandSender sender, String key) {
+        // /pss status <key> [page]
+        int page = 1;
+        // key might contain page number: "kill_entity 2"
+        String[] parts = key.split(" ");
+        String actualKey = parts[0];
+        if (parts.length >= 2) {
+            try { page = Integer.parseInt(parts[1]); } catch (NumberFormatException ignored) {}
+        }
+
+        sender.sendMessage(Component.text("─── Detail: " + actualKey + " ───", NamedTextColor.GOLD));
+
+        // Check objectives first
+        for (ObjectiveConfig.ObjectiveSettings s : ObjectiveConfig.getEnabledObjectives()) {
+            if (s.getName().equalsIgnoreCase(actualKey)) {
+                String table = plugin.getDatabaseManager().objectiveTableName(s.getName());
+                sender.sendMessage(line("Type      ", "Objective", NamedTextColor.AQUA));
+                sender.sendMessage(line("Table     ", table, NamedTextColor.WHITE));
+                sender.sendMessage(line("Display   ", s.getDisplayName(), NamedTextColor.WHITE));
+                sender.sendMessage(line("Conflict  ", s.getConflictResolution(), NamedTextColor.YELLOW));
+                sender.sendMessage(line("Triggers  ", buildTriggers(s.isSyncOnJoin(), s.isSyncOnQuit(), s.isSyncPeriodically()), NamedTextColor.WHITE));
+                return;
+            }
+        }
+
+        // Find matching stat entries
+        var matches = StatConfig.getEnabledEntries().stream()
+                .filter(s -> s.getKey().equalsIgnoreCase(actualKey) || s.getKey().startsWith(actualKey + "_"))
+                .toList();
+
+        if (matches.isEmpty()) {
+            sender.sendMessage(Component.text("No stat or objective found for key: " + actualKey, NamedTextColor.RED));
+            return;
+        }
+
+        if (matches.size() == 1) {
+            StatConfig.StatEntry s = matches.get(0);
+            String table = plugin.getDatabaseManager().statTableName(s.getKey());
+            sender.sendMessage(line("Type      ", "Statistic", NamedTextColor.GREEN));
+            sender.sendMessage(line("Table     ", table, NamedTextColor.WHITE));
+            sender.sendMessage(line("Conflict  ", s.getConflictResolution(), NamedTextColor.YELLOW));
+            sender.sendMessage(line("Triggers  ", buildTriggers(s.isSyncOnJoin(), s.isSyncOnQuit(), s.isSyncPeriodically()), NamedTextColor.WHITE));
+            if (s.getEntityType() != null)
+                sender.sendMessage(line("Entity    ", s.getEntityType().name().toLowerCase(), NamedTextColor.WHITE));
+            if (s.getMaterial() != null)
+                sender.sendMessage(line("Material  ", s.getMaterial().name().toLowerCase(), NamedTextColor.WHITE));
+            if (s.getCustomKey() != null)
+                sender.sendMessage(line("Custom key", "minecraft:custom:" + s.getCustomKey(), NamedTextColor.WHITE));
+        } else {
+            // Group with pagination
+            int totalPages = (int) Math.ceil((double) matches.size() / PAGE_SIZE);
+            page = Math.max(1, Math.min(page, totalPages));
+            int from = (page - 1) * PAGE_SIZE;
+            int to   = Math.min(from + PAGE_SIZE, matches.size());
+
+            sender.sendMessage(line("Type      ", "Stat group (" + matches.size() + " entries)", NamedTextColor.GREEN));
+            sender.sendMessage(line("Triggers  ", buildTriggers(
+                    matches.get(0).isSyncOnJoin(),
+                    matches.get(0).isSyncOnQuit(),
+                    matches.get(0).isSyncPeriodically()), NamedTextColor.WHITE));
+            sender.sendMessage(line("Conflict  ", matches.get(0).getConflictResolution(), NamedTextColor.YELLOW));
+            sender.sendMessage(Component.empty());
+            sender.sendMessage(Component.text("Entries (page " + page + "/" + totalPages + "):", NamedTextColor.GRAY));
+
+            for (int i = from; i < to; i++) {
+                StatConfig.StatEntry s = matches.get(i);
+                String table = plugin.getDatabaseManager().statTableName(s.getKey());
+                String sub = s.getEntityType() != null ? s.getEntityType().name().toLowerCase()
+                        : s.getMaterial() != null   ? s.getMaterial().name().toLowerCase()
+                        : s.getKey();
+                sender.sendMessage(
+                        Component.text("  • ", NamedTextColor.DARK_GRAY)
+                                .append(Component.text(sub, NamedTextColor.WHITE))
+                                .append(Component.text(" → ", NamedTextColor.DARK_GRAY))
+                                .append(Component.text(table, NamedTextColor.GRAY)));
+            }
+
+            // Pagination bar
+            sender.sendMessage(Component.empty());
+            sender.sendMessage(buildPageBar(actualKey, page, totalPages));
+        }
+    }
+
+    private Component buildPageBar(String key, int current, int total) {
+        Component bar = Component.text("", NamedTextColor.DARK_GRAY);
+
+        if (current > 1) {
+            bar = bar.append(
+                    Component.text("◀ Prev", NamedTextColor.AQUA)
+                            .clickEvent(ClickEvent.runCommand("/pss status " + key + " " + (current - 1)))
+                            .hoverEvent(HoverEvent.showText(Component.text("Page " + (current - 1), NamedTextColor.GRAY))));
+        } else {
+            bar = bar.append(Component.text("◀ Prev", NamedTextColor.DARK_GRAY));
+        }
+
+        bar = bar.append(Component.text("  [" + current + "/" + total + "]  ", NamedTextColor.GRAY));
+
+        if (current < total) {
+            bar = bar.append(
+                    Component.text("Next ▶", NamedTextColor.AQUA)
+                            .clickEvent(ClickEvent.runCommand("/pss status " + key + " " + (current + 1)))
+                            .hoverEvent(HoverEvent.showText(Component.text("Page " + (current + 1), NamedTextColor.GRAY))));
+        } else {
+            bar = bar.append(Component.text("Next ▶", NamedTextColor.DARK_GRAY));
+        }
+
+        return bar;
     }
 
     private Component line(String label, String value, NamedTextColor valueColor) {
@@ -249,6 +466,30 @@ public class StatsCommand implements CommandExecutor, TabCompleter {
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command,
                                       @NotNull String alias, @NotNull String[] args) {
         if (args.length == 1) return Arrays.asList("reload", "sync", "status", "version");
+        if (args.length == 2 && args[0].equalsIgnoreCase("status")) {
+            String partial = args[1].toLowerCase();
+            var suggestions = new java.util.ArrayList<String>();
+            ObjectiveConfig.getEnabledObjectives().stream()
+                    .map(ObjectiveConfig.ObjectiveSettings::getName)
+                    .filter(n -> n.toLowerCase().startsWith(partial))
+                    .forEach(suggestions::add);
+            StatConfig.getEnabledEntries().stream()
+                    .map(StatConfig.StatEntry::getKey)
+                    .filter(k -> k.toLowerCase().startsWith(partial))
+                    .forEach(suggestions::add);
+            return suggestions;
+        }
+        if (args.length == 3 && args[0].equalsIgnoreCase("status")) {
+            // Suggest page numbers based on group size
+            String key = args[1].toLowerCase();
+            long groupSize = StatConfig.getEnabledEntries().stream()
+                    .filter(s -> s.getKey().startsWith(key + "_") || s.getKey().equalsIgnoreCase(key))
+                    .count();
+            int pages = (int) Math.ceil((double) groupSize / PAGE_SIZE);
+            var suggestions = new java.util.ArrayList<String>();
+            for (int i = 1; i <= pages; i++) suggestions.add(String.valueOf(i));
+            return suggestions;
+        }
         if (args.length == 2 && args[0].equalsIgnoreCase("sync")) {
             String partial = args[1].toLowerCase();
             List<String> suggestions = new java.util.ArrayList<>();
