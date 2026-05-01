@@ -168,21 +168,26 @@ public class StatsCommand implements CommandExecutor, TabCompleter {
                     var simple = allStats.stream()
                             .filter(s -> s.getMaterial() == null && s.getEntityType() == null)
                             .toList();
-                    // Group: ENTITY (kill_entity_*)
+                    // Group: ENTITY (kill_entity_*) — keyed by stripping the EntityType suffix
                     var entityGroups = allStats.stream()
                             .filter(s -> s.getEntityType() != null)
                             .collect(java.util.stream.Collectors.groupingBy(s -> {
+                                // Remove the entity type name (which may contain underscores) from the end
+                                String entitySuffix = "_" + s.getEntityType().name().toLowerCase();
                                 String k = s.getKey();
-                                int last = k.lastIndexOf('_');
-                                return last > 0 ? k.substring(0, last) : k;
+                                return k.endsWith(entitySuffix)
+                                        ? k.substring(0, k.length() - entitySuffix.length())
+                                        : k;
                             }));
-                    // Group: BLOCK/ITEM
+                    // Group: BLOCK/ITEM — keyed by stripping the Material suffix
                     var materialGroups = allStats.stream()
                             .filter(s -> s.getMaterial() != null)
                             .collect(java.util.stream.Collectors.groupingBy(s -> {
+                                String matSuffix = "_" + s.getMaterial().name().toLowerCase();
                                 String k = s.getKey();
-                                int last = k.lastIndexOf('_');
-                                return last > 0 ? k.substring(0, last) : k;
+                                return k.endsWith(matSuffix)
+                                        ? k.substring(0, k.length() - matSuffix.length())
+                                        : k;
                             }));
 
                     sender.sendMessage(Component.empty());
@@ -328,9 +333,28 @@ public class StatsCommand implements CommandExecutor, TabCompleter {
             }
         }
 
-        // Find matching stat entries
+        // Find matching stat entries — direct key OR group prefix match
         var matches = StatConfig.getEnabledEntries().stream()
-                .filter(s -> s.getKey().equalsIgnoreCase(actualKey) || s.getKey().startsWith(actualKey + "_"))
+                .filter(s -> {
+                    if (s.getKey().equalsIgnoreCase(actualKey)) return true;
+                    // For ENTITY stats: group key = key minus "_entitytype"
+                    if (s.getEntityType() != null) {
+                        String suffix = "_" + s.getEntityType().name().toLowerCase();
+                        String groupKey = s.getKey().endsWith(suffix)
+                                ? s.getKey().substring(0, s.getKey().length() - suffix.length())
+                                : s.getKey();
+                        return groupKey.equalsIgnoreCase(actualKey);
+                    }
+                    // For MATERIAL stats: group key = key minus "_material"
+                    if (s.getMaterial() != null) {
+                        String suffix = "_" + s.getMaterial().name().toLowerCase();
+                        String groupKey = s.getKey().endsWith(suffix)
+                                ? s.getKey().substring(0, s.getKey().length() - suffix.length())
+                                : s.getKey();
+                        return groupKey.equalsIgnoreCase(actualKey);
+                    }
+                    return false;
+                })
                 .toList();
 
         if (matches.isEmpty()) {
@@ -480,10 +504,24 @@ public class StatsCommand implements CommandExecutor, TabCompleter {
             return suggestions;
         }
         if (args.length == 3 && args[0].equalsIgnoreCase("status")) {
-            // Suggest page numbers based on group size
             String key = args[1].toLowerCase();
             long groupSize = StatConfig.getEnabledEntries().stream()
-                    .filter(s -> s.getKey().startsWith(key + "_") || s.getKey().equalsIgnoreCase(key))
+                    .filter(s -> {
+                        if (s.getKey().equalsIgnoreCase(key)) return true;
+                        if (s.getEntityType() != null) {
+                            String suffix = "_" + s.getEntityType().name().toLowerCase();
+                            String gk = s.getKey().endsWith(suffix)
+                                    ? s.getKey().substring(0, s.getKey().length() - suffix.length()) : s.getKey();
+                            return gk.equalsIgnoreCase(key);
+                        }
+                        if (s.getMaterial() != null) {
+                            String suffix = "_" + s.getMaterial().name().toLowerCase();
+                            String gk = s.getKey().endsWith(suffix)
+                                    ? s.getKey().substring(0, s.getKey().length() - suffix.length()) : s.getKey();
+                            return gk.equalsIgnoreCase(key);
+                        }
+                        return false;
+                    })
                     .count();
             int pages = (int) Math.ceil((double) groupSize / PAGE_SIZE);
             var suggestions = new java.util.ArrayList<String>();
